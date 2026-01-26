@@ -77,8 +77,8 @@ def get_rag_chain(vectorstore, hf_token: str):
     prompt = ChatPromptTemplate.from_template(
         """
         You are a helpful assistant.
-        Answer strictly using the provided context.
-        If the answer is not in the context, say "I don't know".
+        Assistant should answer the question based on the provided context.
+        If needed, you also can talk with the user with your own knowledge.
 
         Context:
         {context}
