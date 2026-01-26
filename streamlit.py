@@ -111,12 +111,12 @@ def get_rag_chain(vectorstore, hf_token: str):
 # Streamlit UI
 # =========================
 st.set_page_config(
-    page_title="DocuMind",
+    page_title="RAGstack",
     page_icon="💬",
     layout="centered",
 )
 
-st.title("💬 DocuMind")
+st.title("🤖 RAGstack")
 st.caption("Chat with your PDF using your own Hugging Face API key")
 
 # =========================
