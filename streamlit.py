@@ -112,11 +112,11 @@ def get_rag_chain(vectorstore, hf_token: str):
 # =========================
 st.set_page_config(
     page_title="RAGstack",
-    page_icon="💬",
+    page_icon="🤖",
     layout="centered",
 )
 
-st.title("🤖 RAGstack")
+st.title("RAGstack 📚")
 st.caption("Chat with your PDF using your own Hugging Face API key")
 
 # =========================
