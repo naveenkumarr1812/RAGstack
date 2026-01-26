@@ -5,3 +5,6 @@ langchain-ollama
 pypdf
 ollama
 streamlit
+chromadb
+streamlit
+langchain_huggingface
