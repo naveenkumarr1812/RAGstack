@@ -18,15 +18,13 @@ from langchain_huggingface import (
     HuggingFaceEndpointEmbeddings,
 )
 
-# =========================
+
 # Config
-# =========================
 BASE_DB_PATH = "chroma_sessions"
 os.makedirs(BASE_DB_PATH, exist_ok=True)
 
-# =========================
+
 # Session setup
-# =========================
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
@@ -37,9 +35,8 @@ st.session_state.setdefault("rag_chain", None)
 st.session_state.setdefault("messages", [])
 st.session_state.setdefault("hf_token", "")
 
-# =========================
+
 # Vector store
-# =========================
 def create_vectorstore_from_pdf(pdf_path: str, hf_token: str):
     loader = PyPDFLoader(pdf_path)
     documents = loader.load()
@@ -61,15 +58,14 @@ def create_vectorstore_from_pdf(pdf_path: str, hf_token: str):
         embeddings,
         persist_directory=SESSION_DB_PATH
     )
-    vectorstore.persist()
+
 
     return vectorstore
 
-# =========================
+
 # RAG chain
-# =========================
 def get_rag_chain(vectorstore, hf_token: str):
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
 
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)
@@ -107,9 +103,8 @@ def get_rag_chain(vectorstore, hf_token: str):
         | StrOutputParser()
     )
 
-# =========================
+
 # Streamlit UI
-# =========================
 st.set_page_config(
     page_title="RAGstack",
     page_icon="🤖",
@@ -119,9 +114,8 @@ st.set_page_config(
 st.title("RAGstack 📚")
 st.caption("Chat with your PDF using your own Hugging Face API key")
 
-# =========================
+
 # Sidebar
-# =========================
 with st.sidebar:
     st.header("🔑 Hugging Face API Key")
 
@@ -148,7 +142,7 @@ with st.sidebar:
         else:
             with st.spinner("Processing document..."):
 
-                # 🔥 IMPORTANT: delete old vector DB
+                #  IMPORTANT: delete old vector DB
                 if os.path.exists(SESSION_DB_PATH):
                     shutil.rmtree(SESSION_DB_PATH, ignore_errors=True)
 
@@ -183,9 +177,8 @@ with st.sidebar:
     st.markdown("• Fresh DB per PDF")
     st.markdown("• No old data leakage")
 
-# =========================
+
 # Chat UI
-# =========================
 if st.session_state.rag_chain:
 
     for msg in st.session_state.messages:
