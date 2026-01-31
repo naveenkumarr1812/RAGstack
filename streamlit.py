@@ -194,13 +194,48 @@ if st.session_state.rag_chain:
         with st.chat_message("user"):
             st.markdown(user_input)
 
+        # Streamed assistant reply (try several streaming interfaces, with fallbacks)
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                answer = st.session_state.rag_chain.invoke(user_input)
-                st.markdown(answer)
+            message_placeholder = st.empty()
+            full_answer = ""
+
+            # First try: Runnable.stream(...) if provided
+            try:
+                stream = st.session_state.rag_chain.stream(user_input)
+                for chunk in stream:
+                    # chunk can be str or object; normalize
+                    delta = ""
+                    if isinstance(chunk, str):
+                        delta = chunk
+                    elif isinstance(chunk, dict) and "text" in chunk:
+                        delta = chunk["text"]
+                    else:
+                        delta = str(chunk)
+
+                    full_answer += delta
+                    message_placeholder.markdown(full_answer)
+
+            except Exception:
+                # Second try: invoke with streaming flag (some runnables accept streaming=True)
+                try:
+                    stream_alt = st.session_state.rag_chain.invoke(user_input, streaming=True)
+                    if hasattr(stream_alt, "__iter__") and not isinstance(stream_alt, str):
+                        for chunk in stream_alt:
+                            delta = str(chunk)
+                            full_answer += delta
+                            message_placeholder.markdown(full_answer)
+                    else:
+                        # Not iterable -> full string
+                        full_answer = str(stream_alt)
+                        message_placeholder.markdown(full_answer)
+
+                except Exception:
+                    # Final fallback: blocking invoke
+                    full_answer = st.session_state.rag_chain.invoke(user_input)
+                    message_placeholder.markdown(full_answer)
 
         st.session_state.messages.append(
-            {"role": "assistant", "content": answer}
+            {"role": "assistant", "content": full_answer}
         )
 
 else:
