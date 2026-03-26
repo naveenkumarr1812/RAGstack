@@ -107,7 +107,7 @@ def get_rag_chain(vectorstore, hf_token: str):
 # Streamlit UI
 st.set_page_config(
     page_title="RAGstack",
-    page_icon="🤖",
+    page_icon="📚",
     layout="centered",
 )
 
