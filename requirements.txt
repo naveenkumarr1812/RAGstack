@@ -1,29 +1,17 @@
-# Core
 streamlit==1.33.0
 
-# LangChain ecosystem (keep versions aligned)
 langchain==0.2.1
 langchain-community==0.2.1
 langchain-core==0.2.1
 langchain-huggingface==0.0.3
 
-# Vector DB (IMPORTANT VERSION)
 chromadb==0.4.24
-
-# 🔥 Critical fix (prevents your error)
 protobuf==3.20.3
 
-# Embeddings / LLM
 sentence-transformers==2.6.1
 huggingface_hub==0.23.0
 
-# PDF
 pypdf==4.2.0
 
-# Optional (only if you really use Ollama locally)
-ollama==0.1.9
-langchain-ollama==0.1.0
-
-# Safer telemetry compatibility
 opentelemetry-api==1.25.0
 opentelemetry-sdk==1.25.0
