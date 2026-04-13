@@ -85,7 +85,7 @@ def get_rag_chain(vectorstore, hf_token: str):
     )
 
     llm_endpoint = HuggingFaceEndpoint(
-        repo_id="deepseek-ai/DeepSeek-V3.2",
+        repo_id="google/gemma-4-26B-A4B-it",
         max_new_tokens=512,
         temperature=0.2,
         huggingfacehub_api_token=hf_token,
