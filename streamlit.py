@@ -119,7 +119,7 @@ st.caption("Chat with your PDF using Hugging Face API")
 
 # Sidebar
 with st.sidebar:
-    st.header("Upload PDF")
+    st.header("PDF Uploader")
 
     uploaded_file = st.file_uploader(
         "Upload a PDF",
