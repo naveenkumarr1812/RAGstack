@@ -33,11 +33,12 @@ SESSION_DB_PATH = os.path.join(BASE_DB_PATH, st.session_state.session_id)
 st.session_state.setdefault("vectorstore", None)
 st.session_state.setdefault("rag_chain", None)
 st.session_state.setdefault("messages", [])
-st.session_state.setdefault("hf_token", "")
 
 
 # Vector store
-def create_vectorstore_from_pdf(pdf_path: str, hf_token: str):
+def create_vectorstore_from_pdf(pdf_path: str):
+    hf_token = st.secrets["HUGGINGFACE_API_KEY"]
+    
     loader = PyPDFLoader(pdf_path)
     documents = loader.load()
 
@@ -64,7 +65,8 @@ def create_vectorstore_from_pdf(pdf_path: str, hf_token: str):
 
 
 # RAG chain
-def get_rag_chain(vectorstore, hf_token: str):
+def get_rag_chain(vectorstore):
+    hf_token = st.secrets["HUGGINGFACE_API_KEY"]
     retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
 
     def format_docs(docs):
@@ -112,24 +114,12 @@ st.set_page_config(
 )
 
 st.title("RAGstack 📚")
-st.caption("Chat with your PDF using your own Hugging Face API key")
+st.caption("Chat with your PDF using Hugging Face API")
 
 
 # Sidebar
 with st.sidebar:
-    st.header("🔑 Hugging Face API Key")
-
-    hf_token_input = st.text_input(
-        "Enter your Hugging Face API Key",
-        type="password",
-        placeholder="hf_xxxxxxxxxxxxxxxxx",
-    )
-
-    if hf_token_input:
-        st.session_state.hf_token = hf_token_input
-
-    st.markdown("---")
-    st.header("📂 Upload PDF")
+    st.header("� Upload PDF")
 
     uploaded_file = st.file_uploader(
         "Upload a PDF",
@@ -137,32 +127,23 @@ with st.sidebar:
     )
 
     if uploaded_file and st.button("Process Document"):
-        if not st.session_state.hf_token:
-            st.error("Please enter your Hugging Face API key first.")
-        else:
-            with st.spinner("Processing document..."):
+        with st.spinner("Processing document..."):
 
-                #  IMPORTANT: delete old vector DB
-                if os.path.exists(SESSION_DB_PATH):
-                    shutil.rmtree(SESSION_DB_PATH, ignore_errors=True)
+            #  IMPORTANT: delete old vector DB
+            if os.path.exists(SESSION_DB_PATH):
+                shutil.rmtree(SESSION_DB_PATH, ignore_errors=True)
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(uploaded_file.read())
-                    pdf_path = tmp.name
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(uploaded_file.read())
+                pdf_path = tmp.name
 
-                vectorstore = create_vectorstore_from_pdf(
-                    pdf_path,
-                    st.session_state.hf_token
-                )
+            vectorstore = create_vectorstore_from_pdf(pdf_path)
 
-                st.session_state.vectorstore = vectorstore
-                st.session_state.rag_chain = get_rag_chain(
-                    vectorstore,
-                    st.session_state.hf_token
-                )
-                st.session_state.messages = []
+            st.session_state.vectorstore = vectorstore
+            st.session_state.rag_chain = get_rag_chain(vectorstore)
+            st.session_state.messages = []
 
-            st.success("Document processed. Start chatting.")
+        st.success("Document processed. Start chatting.")
 
     st.markdown("---")
 
