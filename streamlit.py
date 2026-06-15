@@ -119,7 +119,7 @@ st.caption("Chat with your PDF using Hugging Face API")
 
 # Sidebar
 with st.sidebar:
-    st.header("� Upload PDF")
+    st.header("Upload PDF")
 
     uploaded_file = st.file_uploader(
         "Upload a PDF",
@@ -220,4 +220,4 @@ if st.session_state.rag_chain:
         )
 
 else:
-    st.info("👈 Enter API key and upload a PDF to start chatting.")
+    st.info("👈 Upload a PDF to start chatting.")
