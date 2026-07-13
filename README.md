@@ -166,6 +166,6 @@ Contributions are welcome! Here are some ideas:
 - Model selection dropdown
 - Advanced retrieval strategies
 
-## 📝 License
+## 📝 LICENSE
 
-This project is open source and available under the MIT License(LICENCE).
+This project is open source and available under the [MIT LICENSE](LICENSE)
