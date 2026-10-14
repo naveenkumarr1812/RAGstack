@@ -10,7 +10,7 @@ A beautiful and privacy-focused RAG (Retrieval-Augmented Generation) application
 
 - **🔒 Privacy First**: Your API key is never stored, ensuring complete security
 - **📄 PDF Processing**: Upload and process PDF documents with intelligent chunking
-- **💬 Interactive Chat**: Natural conversation interface powered by DeepSeek-V3.2
+- **💬 Interactive Chat**: Natural conversation interface powered by Groq
 - **🧠 Smart Retrieval**: Uses sentence-transformers for semantic search
 - **🗄️ Session Management**: Fresh vector database for each PDF - no data leakage
 - **🎨 Clean UI**: Intuitive Streamlit interface with sidebar controls
@@ -20,7 +20,7 @@ A beautiful and privacy-focused RAG (Retrieval-Augmented Generation) application
 ### Prerequisites
 
 - Python 3.8 or higher
-- A Hugging Face account and API token ([Get one here](https://huggingface.co/settings/tokens))
+- A Groq account and API key ([Get one here](https://console.groq.com/keys))
 
 ### Installation
 
@@ -46,8 +46,12 @@ streamlit run streamlit.py
 ## 🎯 How to Use
 
 ### Step 1: Configure Your API Key
-- Add `HUGGINGFACE_API_KEY` to your Streamlit secrets
-- The key is used for hosted chat generation and is not used for PDF embeddings
+- Add your Groq key to Streamlit secrets:
+  ```toml
+  GROQ_API_KEY = "your-groq-api-key"
+  ```
+- Optionally set `GROQ_CHAT_MODEL` to select a different model; by default the app uses `llama-3.3-70b-versatile`
+- The key is used only for chat generation; PDF embeddings run locally
 
 ### Step 2: Upload a PDF
 - Click "Browse files" to select your PDF document
@@ -73,7 +77,7 @@ RAGstack uses a modern RAG architecture with the following components:
 - **Chunking**: Recursive text splitting with 500-character chunks and 100-character overlap
 
 ### Language Model
-- **Model**: DeepSeek-V3.2 via Hugging Face Inference API
+- **Model**: Llama 3.3 70B via Groq
 - **Temperature**: 0.2 for focused, deterministic responses
 - **Max Tokens**: 512 per response
 
@@ -112,14 +116,9 @@ chroma_sessions/
 ## 🎨 Customization
 
 ### Change the LLM
-Modify the `repo_id` in the `get_rag_chain` function:
+Set a different model in Streamlit secrets:
 ```python
-llm_endpoint = HuggingFaceEndpoint(
-    repo_id="your-preferred-model",
-    max_new_tokens=512,
-    temperature=0.2,
-    huggingfacehub_api_token=hf_token,
-)
+GROQ_CHAT_MODEL = "your-preferred-model"
 ```
 
 ### Adjust Chunk Size
@@ -140,9 +139,8 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 5})  # Default is 8
 ## 🐛 Troubleshooting
 
 ### "API Key Error"
-- Ensure your Hugging Face token has inference API access
-- Check that the token starts with `hf_`
-- Verify your token at https://huggingface.co/settings/tokens
+- Ensure `GROQ_API_KEY` is present in Streamlit secrets
+- Verify or create your key at https://console.groq.com/keys
 
 ### "Document Processing Failed"
 - Make sure your PDF is not password-protected
@@ -150,12 +148,10 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 5})  # Default is 8
 - Try a smaller PDF first to test
 - The embedding model is downloaded on first use; allow the first processing run to finish
 
-### "Hugging Face API Error"
-- Add `HUGGINGFACE_API_KEY` to Streamlit secrets
-- The key is used only for chat generation; PDF embeddings run locally
-- Confirm that the token has permission to use the configured chat model
-- If the app reports `402 Payment Required` or "no remaining credits", the Hugging Face account has exhausted its Inference Providers balance. Add credits/upgrade the account, or change `HUGGINGFACE_CHAT_MODEL` to a model available through a provider enabled for your account.
-- The app now reports this condition without displaying an unhandled traceback; indexing still completes and the question remains available for retry.
+### "Groq API Error"
+- Check that `GROQ_API_KEY` is valid and configured in Streamlit secrets
+- Check the configured model name in `GROQ_CHAT_MODEL`
+- For usage or rate limits, review your Groq account's current limits and retry later
 
 ### "Out of Memory"
 - Reduce chunk size in the text splitter

@@ -47,6 +47,7 @@ yarl==1.23.0
 zstandard==0.25.0
 langchain_community
 langchain_huggingface
+langchain_groq
 pypdf
 chromadb
 langchain_ollama

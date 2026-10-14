@@ -13,11 +13,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
-from langchain_huggingface import (
-    ChatHuggingFace,
-    HuggingFaceEmbeddings,
-    HuggingFaceEndpoint,
-)
+from langchain_groq import ChatGroq
+from langchain_huggingface import HuggingFaceEmbeddings
 
 
 # Config and page styling
@@ -123,10 +120,10 @@ def create_vectorstore_from_pdf(pdf_path: str):
 
 # RAG chain
 def get_rag_chain(vectorstore):
-    hf_token = st.secrets.get("HUGGINGFACE_API_KEY")
-    if not hf_token:
+    groq_api_key = st.secrets.get("GROQ_API_KEY")
+    if not groq_api_key:
         raise ValueError(
-            "Add HUGGINGFACE_API_KEY to Streamlit secrets before starting a chat."
+            "Add GROQ_API_KEY to Streamlit secrets before starting a chat."
         )
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
@@ -148,17 +145,12 @@ def get_rag_chain(vectorstore):
         """
     )
 
-    llm_endpoint = HuggingFaceEndpoint(
-        repo_id=st.secrets.get(
-            "HUGGINGFACE_CHAT_MODEL",
-            "google/gemma-4-26B-A4B-it",
-        ),
-        max_new_tokens=512,
+    llm = ChatGroq(
+        model=st.secrets.get("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile"),
+        max_tokens=512,
         temperature=0.2,
-        huggingfacehub_api_token=hf_token,
+        api_key=groq_api_key,
     )
-
-    llm = ChatHuggingFace(llm=llm_endpoint)
 
     return (
         {
@@ -171,29 +163,36 @@ def get_rag_chain(vectorstore):
     )
 
 
-def is_huggingface_credit_error(error: Exception) -> bool:
-    """Identify Hugging Face's exhausted-credit response without hiding errors."""
+def get_chat_error_status(error: Exception):
     response = getattr(error, "response", None)
-    return getattr(response, "status_code", None) == 402 or (
-        "402" in str(error) and "credit" in str(error).lower()
+    return getattr(error, "status_code", None) or getattr(
+        response,
+        "status_code",
+        None,
     )
 
 
 def render_chat_error(error: Exception) -> None:
-    if is_huggingface_credit_error(error):
+    status_code = get_chat_error_status(error)
+    if status_code == 401:
         st.error(
-            "Hugging Face has no inference credits available for this account. "
-            "Add credits or configure another chat provider/model in Streamlit secrets."
+            "Groq rejected the API key. Check that `GROQ_API_KEY` is valid "
+            "and available in Streamlit secrets."
         )
-        st.markdown(
-            "The PDF is indexed successfully; only answer generation is blocked. "
-            "Your question was not lost."
+        return
+    if status_code == 429:
+        st.error(
+            "Groq rate limit or usage quota reached. Wait and retry, or check "
+            "your Groq account's usage limits."
         )
+        return
+    if status_code == 402:
+        st.error("Groq requires billing or available credits for this request.")
         return
 
     st.error(
         "The answer could not be generated. "
-        "Check the Hugging Face token and configured chat model."
+        "Check the Groq API key and configured chat model."
     )
     st.exception(error)
 
@@ -244,8 +243,8 @@ with st.sidebar:
                 )
         except Exception as exc:
             st.error(
-                "We could not process this document. "
-                "Check your Hugging Face secret and try again."
+                "Could not prepare the document chat. "
+                "Check that the PDF contains text and that GROQ_API_KEY is configured."
             )
             st.exception(exc)
         finally:
