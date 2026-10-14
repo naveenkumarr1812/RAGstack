@@ -1,7 +1,8 @@
 import os
-import uuid
 import shutil
 import tempfile
+import uuid
+
 import streamlit as st
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -14,12 +15,60 @@ from langchain_core.runnables import RunnablePassthrough
 
 from langchain_huggingface import (
     ChatHuggingFace,
+    HuggingFaceEmbeddings,
     HuggingFaceEndpoint,
-    HuggingFaceEndpointEmbeddings,
 )
 
 
-# Config
+# Config and page styling
+st.set_page_config(
+    page_title="RAGstack | PDF Intelligence",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+    }
+    [data-testid="stSidebar"] {
+        background: #111827;
+    }
+    [data-testid="stSidebar"] * {
+        color: #f9fafb;
+    }
+    .hero {
+        padding: 2.5rem 2.75rem;
+        border-radius: 1.25rem;
+        background: linear-gradient(120deg, #312e81, #4f46e5 55%, #7c3aed);
+        color: white;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 18px 45px rgba(49, 46, 129, .2);
+    }
+    .hero h1 {
+        margin: 0 0 .5rem;
+        font-size: clamp(2rem, 5vw, 3.5rem);
+    }
+    .hero p {
+        margin: 0;
+        color: #e0e7ff;
+        font-size: 1.1rem;
+    }
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+        border: 1px dashed #a5b4fc;
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, .7);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 BASE_DB_PATH = "chroma_sessions"
 os.makedirs(BASE_DB_PATH, exist_ok=True)
 
@@ -35,10 +84,21 @@ st.session_state.setdefault("rag_chain", None)
 st.session_state.setdefault("messages", [])
 
 
-# Vector store
+@st.cache_resource(show_spinner=False)
+def get_embeddings():
+    """Load the embedding model once per Streamlit process.
+
+    Local embeddings avoid the hosted Hugging Face feature-extraction endpoint,
+    which is not available for every model/provider combination.
+    """
+    return HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={"normalize_embeddings": True},
+    )
+
+
 def create_vectorstore_from_pdf(pdf_path: str):
-    hf_token = st.secrets["HUGGINGFACE_API_KEY"]
-    
     loader = PyPDFLoader(pdf_path)
     documents = loader.load()
 
@@ -48,25 +108,23 @@ def create_vectorstore_from_pdf(pdf_path: str):
     )
     docs = splitter.split_documents(documents)
 
-    embeddings = HuggingFaceEndpointEmbeddings(
-        repo_id="sentence-transformers/all-MiniLM-L6-v2",
-        task="feature-extraction",
-        huggingfacehub_api_token=hf_token,
-    )
-
     vectorstore = Chroma.from_documents(
         docs,
-        embeddings,
-        persist_directory=SESSION_DB_PATH
+        get_embeddings(),
+        persist_directory=SESSION_DB_PATH,
     )
-
 
     return vectorstore
 
 
 # RAG chain
 def get_rag_chain(vectorstore):
-    hf_token = st.secrets["HUGGINGFACE_API_KEY"]
+    hf_token = st.secrets.get("HUGGINGFACE_API_KEY")
+    if not hf_token:
+        raise ValueError(
+            "Add HUGGINGFACE_API_KEY to Streamlit secrets before starting a chat."
+        )
+
     retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
 
     def format_docs(docs):
@@ -106,61 +164,90 @@ def get_rag_chain(vectorstore):
     )
 
 
-# Streamlit UI
-st.set_page_config(
-    page_title="RAGstack",
-    page_icon="📚",
-    layout="centered",
-)
-
-st.title("RAGstack 📚")
-st.caption("Chat with your PDF using Hugging Face API")
-
-
 # Sidebar
 with st.sidebar:
-    st.header("PDF Uploader")
+    st.markdown("## 📚 RAGstack")
+    st.caption("Private, focused conversations with your documents.")
+    st.markdown("---")
+    st.subheader("1. Add a document")
 
     uploaded_file = st.file_uploader(
-        "Upload a PDF",
-        type=["pdf"]
+        "Choose a PDF",
+        type=["pdf"],
+        help="Text-based PDFs work best. Scanned PDFs need OCR first.",
     )
 
-    if uploaded_file and st.button("Process Document"):
-        with st.spinner("Processing document..."):
+    process_document = st.button(
+        "✨ Process document",
+        type="primary",
+        use_container_width=True,
+        disabled=uploaded_file is None,
+    )
 
-            #  IMPORTANT: delete old vector DB
-            if os.path.exists(SESSION_DB_PATH):
-                shutil.rmtree(SESSION_DB_PATH, ignore_errors=True)
+    if process_document and uploaded_file:
+        pdf_path = None
+        try:
+            with st.status("Preparing your document...", expanded=True) as status:
+                if os.path.exists(SESSION_DB_PATH):
+                    shutil.rmtree(SESSION_DB_PATH, ignore_errors=True)
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                tmp.write(uploaded_file.read())
-                pdf_path = tmp.name
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(uploaded_file.getvalue())
+                    pdf_path = tmp.name
 
-            vectorstore = create_vectorstore_from_pdf(pdf_path)
+                st.write("Extracting and splitting text...")
+                vectorstore = create_vectorstore_from_pdf(pdf_path)
+                st.write("Building your chat assistant...")
+                rag_chain = get_rag_chain(vectorstore)
 
-            st.session_state.vectorstore = vectorstore
-            st.session_state.rag_chain = get_rag_chain(vectorstore)
-            st.session_state.messages = []
-
-        st.success("Document processed. Start chatting.")
+                st.session_state.vectorstore = vectorstore
+                st.session_state.rag_chain = rag_chain
+                st.session_state.messages = []
+                status.update(
+                    label="Document ready — ask your first question!",
+                    state="complete",
+                    expanded=False,
+                )
+        except Exception as exc:
+            st.error(
+                "We could not process this document. "
+                "Check your Hugging Face secret and try again."
+            )
+            st.exception(exc)
+        finally:
+            if pdf_path and os.path.exists(pdf_path):
+                os.unlink(pdf_path)
 
     st.markdown("---")
+    st.subheader("2. Session controls")
 
-    if st.button("🧹 New Chat / Reset"):
+    if st.button("🧹 New chat / reset", use_container_width=True):
         if os.path.exists(SESSION_DB_PATH):
             shutil.rmtree(SESSION_DB_PATH, ignore_errors=True)
 
         st.session_state.clear()
         st.rerun()
 
-    st.markdown("• API key never stored")
-    st.markdown("• Fresh DB per PDF")
-    st.markdown("• No old data leakage")
+    st.markdown("---")
+    st.caption("🔐 API key is read from Streamlit secrets")
+    st.caption("🧠 Embeddings run locally")
+    st.caption("🗂️ Isolated vector store per session")
 
 
 # Chat UI
+st.markdown(
+    """
+    <div class="hero">
+        <h1>Ask your document anything.</h1>
+        <p>Upload a PDF, ground every answer in its content, and keep your
+        research moving.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 if st.session_state.rag_chain:
+    st.caption("Your document is indexed and ready.")
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -175,49 +262,40 @@ if st.session_state.rag_chain:
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        # Streamed assistant reply (try several streaming interfaces, with fallbacks)
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_answer = ""
-
-            # First try: Runnable.stream(...) if provided
             try:
                 stream = st.session_state.rag_chain.stream(user_input)
                 for chunk in stream:
-                    # chunk can be str or object; normalize
-                    delta = ""
                     if isinstance(chunk, str):
                         delta = chunk
                     elif isinstance(chunk, dict) and "text" in chunk:
                         delta = chunk["text"]
                     else:
                         delta = str(chunk)
-
                     full_answer += delta
                     message_placeholder.markdown(full_answer)
-
-            except Exception:
-                # Second try: invoke with streaming flag (some runnables accept streaming=True)
-                try:
-                    stream_alt = st.session_state.rag_chain.invoke(user_input, streaming=True)
-                    if hasattr(stream_alt, "__iter__") and not isinstance(stream_alt, str):
-                        for chunk in stream_alt:
-                            delta = str(chunk)
-                            full_answer += delta
-                            message_placeholder.markdown(full_answer)
-                    else:
-                        # Not iterable -> full string
-                        full_answer = str(stream_alt)
-                        message_placeholder.markdown(full_answer)
-
-                except Exception:
-                    # Final fallback: blocking invoke
-                    full_answer = st.session_state.rag_chain.invoke(user_input)
-                    message_placeholder.markdown(full_answer)
+            except Exception as exc:
+                st.error(
+                    "The answer could not be generated. "
+                    "Please verify that your Hugging Face token can use the chat model."
+                )
+                st.exception(exc)
+                full_answer = "I couldn't generate an answer for that question."
 
         st.session_state.messages.append(
             {"role": "assistant", "content": full_answer}
         )
 
 else:
-    st.info("👈 Upload a PDF to start chatting.")
+    st.markdown(
+        """
+        <div class="empty-state">
+            <h2>👈 Start with a PDF</h2>
+            <p>Use the sidebar to upload and process a document. Your local
+            embeddings will be created once and reused for this session.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

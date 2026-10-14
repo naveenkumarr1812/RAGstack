@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 3. Run the application:
 ```bash
-streamlit run app.py
+streamlit run streamlit.py
 ```
 
 4. Open your browser to `http://localhost:8501`
@@ -45,10 +45,9 @@ streamlit run app.py
 
 ## 🎯 How to Use
 
-### Step 1: Enter Your API Key
-- Open the sidebar (👈)
-- Enter your Hugging Face API token in the password field
-- Your key is only used for the current session and never stored
+### Step 1: Configure Your API Key
+- Add `HUGGINGFACE_API_KEY` to your Streamlit secrets
+- The key is used for hosted chat generation and is not used for PDF embeddings
 
 ### Step 2: Upload a PDF
 - Click "Browse files" to select your PDF document
@@ -69,7 +68,7 @@ streamlit run app.py
 RAGstack uses a modern RAG architecture with the following components:
 
 ### Vector Store
-- **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2` for semantic understanding
+- **Embeddings**: Local `sentence-transformers/all-MiniLM-L6-v2` embeddings for reliable semantic search
 - **Database**: Chroma for efficient vector storage and retrieval
 - **Chunking**: Recursive text splitting with 500-character chunks and 100-character overlap
 
@@ -86,7 +85,7 @@ RAGstack uses a modern RAG architecture with the following components:
 
 RAGstack is designed with privacy in mind:
 
-- ✅ API keys are stored only in session state (cleared on exit)
+- ✅ API keys are read from Streamlit secrets
 - ✅ Each PDF gets a fresh vector database
 - ✅ No data persistence between sessions
 - ✅ Local processing with temporary files
@@ -105,7 +104,7 @@ chroma_sessions/
 ### Document Processing Pipeline
 1. PDF loaded via PyPDFLoader
 2. Text split into manageable chunks
-3. Chunks embedded using sentence-transformers
+3. Chunks embedded locally using sentence-transformers (no hosted embedding request)
 4. Embeddings stored in Chroma database
 5. Retriever configured for semantic search
 
@@ -149,6 +148,12 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 5})  # Default is 8
 - Make sure your PDF is not password-protected
 - Check that the PDF contains extractable text (not just images)
 - Try a smaller PDF first to test
+- The embedding model is downloaded on first use; allow the first processing run to finish
+
+### "Hugging Face API Error"
+- Add `HUGGINGFACE_API_KEY` to Streamlit secrets
+- The key is used only for chat generation; PDF embeddings run locally
+- Confirm that the token has permission to use the configured chat model
 
 ### "Out of Memory"
 - Reduce chunk size in the text splitter
