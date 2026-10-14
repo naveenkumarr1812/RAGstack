@@ -22,22 +22,33 @@ st.set_page_config(
     page_title="RAGstack",
     page_icon="◈",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown(
     """
     <style>
     .block-container {
-        max-width: 700px;
-        padding-top: 3rem;
-        padding-bottom: 3rem;
+        max-width: 1100px;
+        padding-top: 3.25rem;
+        padding-bottom: 4rem;
     }
-    [data-testid="stSidebar"] {
-        border-right: 1px solid var(--secondary-background-color);
+    [data-testid="stSidebar"],
+    [data-testid="collapsedControl"] {
+        display: none;
+    }
+    .brand {
+        color: var(--text-color);
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: .02em;
+        margin-bottom: 3rem;
+        opacity: .7;
+        text-align: center;
     }
     .intro {
-        margin-bottom: 2.5rem;
+        margin-bottom: 2.25rem;
+        text-align: center;
     }
     .intro h1 {
         color: var(--text-color);
@@ -52,18 +63,44 @@ st.markdown(
         line-height: 1.55;
         margin: 0;
         max-width: 560px;
+        margin-left: auto;
+        margin-right: auto;
         opacity: .62;
     }
     .empty-state {
         border-top: 1px solid var(--secondary-background-color);
-        margin-top: 3rem;
-        padding-top: .8rem;
+        margin-top: 4rem;
+        padding-top: 1.1rem;
+        text-align: center;
     }
     .empty-state p {
         color: var(--text-color);
         font-size: .78rem;
         margin: 0;
         opacity: .5;
+    }
+    .stFileUploader [data-testid="stWidgetLabel"] {
+        display: block !important;
+        position: relative;
+        text-align: center !important;
+    }
+    .stFileUploader [data-testid="stWidgetLabel"] > div {
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+    .stFileUploader [data-testid="stFileUploaderDropzone"] {
+        align-items: center !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        gap: .35rem;
+        padding: .75rem;
+    }
+    .stFileUploader [data-testid="stFileUploaderDropzoneInstructions"] {
+        justify-content: center;
+        margin: 0;
+        text-align: center !important;
+        width: 100%;
     }
     </style>
     """,
@@ -204,20 +241,37 @@ def render_chat_error(error: Exception) -> None:
     st.exception(error)
 
 
-# Sidebar
-with st.sidebar:
-    st.markdown("## ◈ RAGstack")
-    st.markdown("---")
-    st.subheader("Document")
+st.markdown('<div class="brand">◈ RAGstack</div>', unsafe_allow_html=True)
+if not st.session_state.rag_chain:
+    st.markdown(
+        """
+        <div class="intro">
+            <h1>Ask your document anything.</h1>
+            <p>Upload a document to get clear answers from its content.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        f"""
+        <div class="intro">
+            <h1>Ask about your PDF.</h1>
+            <p>{getattr(st.session_state, "document_name", None) or "Your document"} is ready.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
+upload_columns = st.columns([1, 2, 1])
+with upload_columns[1]:
     uploaded_file = st.file_uploader(
         "Choose a PDF",
         type=["pdf"],
         help="Text-based PDFs work best. Scanned PDFs need OCR first.",
     )
-
     process_document = st.button(
-        "✨ Process document",
+        "Process document",
         type="primary",
         use_container_width=True,
         disabled=uploaded_file is None,
@@ -225,6 +279,7 @@ with st.sidebar:
 
     if process_document and uploaded_file:
         pdf_path = None
+        document_processed = False
         try:
             with st.status("Preparing your document...", expanded=True) as status:
                 if os.path.exists(SESSION_DB_PATH):
@@ -248,6 +303,7 @@ with st.sidebar:
                     state="complete",
                     expanded=False,
                 )
+                document_processed = True
         except Exception as exc:
             st.error(
                 "Could not prepare the document chat. "
@@ -258,10 +314,13 @@ with st.sidebar:
             if pdf_path and os.path.exists(pdf_path):
                 os.unlink(pdf_path)
 
-    st.markdown("---")
-    st.subheader("Session")
+        if document_processed:
+            st.rerun()
 
-    if st.button("🧹 New chat / reset", use_container_width=True):
+    if st.session_state.rag_chain and st.button(
+        "Start a new chat",
+        use_container_width=True,
+    ):
         if os.path.exists(SESSION_DB_PATH):
             shutil.rmtree(SESSION_DB_PATH, ignore_errors=True)
 
@@ -270,30 +329,15 @@ with st.sidebar:
 
 if not st.session_state.rag_chain:
     st.markdown(
-    """
-    <div class="intro">
-        <h1>Chat with your PDF.</h1>
-        <p>Upload a document in the sidebar to begin.</p>
-    </div>
-    <div class="empty-state">
-        <p>PDF · Private session · Local search</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-else:
-    st.markdown(
-        f"""
-        <div class="intro">
-            <h1>Ask about your PDF.</h1>
-            <p>{getattr(st.session_state, "document_name", None) or "Your document"} is ready for questions.</p>
+        """
+        <div class="empty-state">
+            <p>PDF · Private session · Local search</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-    st.caption("Your document is indexed and ready.")
+else:
+    st.markdown("---")
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):

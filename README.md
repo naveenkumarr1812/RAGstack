@@ -13,7 +13,7 @@ A beautiful and privacy-focused RAG (Retrieval-Augmented Generation) application
 - **💬 Interactive Chat**: Natural conversation interface powered by Groq
 - **🧠 Smart Retrieval**: Uses sentence-transformers for semantic search
 - **🗄️ Session Management**: Fresh vector database for each PDF - no data leakage
-- **🎨 Clean UI**: Intuitive Streamlit interface with sidebar controls
+- **🎨 Clean UI**: Minimal, single-page Streamlit interface with centered PDF upload
 
 ## 🚀 Quick Start
 
