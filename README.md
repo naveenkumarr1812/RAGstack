@@ -154,6 +154,8 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 5})  # Default is 8
 - Add `HUGGINGFACE_API_KEY` to Streamlit secrets
 - The key is used only for chat generation; PDF embeddings run locally
 - Confirm that the token has permission to use the configured chat model
+- If the app reports `402 Payment Required` or "no remaining credits", the Hugging Face account has exhausted its Inference Providers balance. Add credits/upgrade the account, or change `HUGGINGFACE_CHAT_MODEL` to a model available through a provider enabled for your account.
+- The app now reports this condition without displaying an unhandled traceback; indexing still completes and the question remains available for retry.
 
 ### "Out of Memory"
 - Reduce chunk size in the text splitter

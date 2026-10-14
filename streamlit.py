@@ -22,47 +22,51 @@ from langchain_huggingface import (
 
 # Config and page styling
 st.set_page_config(
-    page_title="RAGstack | PDF Intelligence",
-    page_icon="📚",
-    layout="wide",
+    page_title="RAGstack",
+    page_icon="◈",
+    layout="centered",
     initial_sidebar_state="expanded",
 )
 
 st.markdown(
     """
     <style>
-    .stApp {
-        background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+    .block-container {
+        max-width: 700px;
+        padding-top: 3rem;
+        padding-bottom: 3rem;
     }
     [data-testid="stSidebar"] {
-        background: #111827;
+        border-right: 1px solid var(--secondary-background-color);
     }
-    [data-testid="stSidebar"] * {
-        color: #f9fafb;
+    .intro {
+        margin-bottom: 2.5rem;
     }
-    .hero {
-        padding: 2.5rem 2.75rem;
-        border-radius: 1.25rem;
-        background: linear-gradient(120deg, #312e81, #4f46e5 55%, #7c3aed);
-        color: white;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 18px 45px rgba(49, 46, 129, .2);
+    .intro h1 {
+        color: var(--text-color);
+        font-size: clamp(1.9rem, 5vw, 2.7rem);
+        letter-spacing: -.05em;
+        line-height: 1.05;
+        margin: 0 0 .65rem;
     }
-    .hero h1 {
-        margin: 0 0 .5rem;
-        font-size: clamp(2rem, 5vw, 3.5rem);
-    }
-    .hero p {
+    .intro p {
+        color: var(--text-color);
+        font-size: .92rem;
+        line-height: 1.55;
         margin: 0;
-        color: #e0e7ff;
-        font-size: 1.1rem;
+        max-width: 560px;
+        opacity: .62;
     }
     .empty-state {
-        padding: 3rem 1rem;
-        text-align: center;
-        border: 1px dashed #a5b4fc;
-        border-radius: 1rem;
-        background: rgba(255, 255, 255, .7);
+        border-top: 1px solid var(--secondary-background-color);
+        margin-top: 3rem;
+        padding-top: .8rem;
+    }
+    .empty-state p {
+        color: var(--text-color);
+        font-size: .78rem;
+        margin: 0;
+        opacity: .5;
     }
     </style>
     """,
@@ -145,7 +149,10 @@ def get_rag_chain(vectorstore):
     )
 
     llm_endpoint = HuggingFaceEndpoint(
-        repo_id="google/gemma-4-26B-A4B-it",
+        repo_id=st.secrets.get(
+            "HUGGINGFACE_CHAT_MODEL",
+            "google/gemma-4-26B-A4B-it",
+        ),
         max_new_tokens=512,
         temperature=0.2,
         huggingfacehub_api_token=hf_token,
@@ -164,12 +171,38 @@ def get_rag_chain(vectorstore):
     )
 
 
+def is_huggingface_credit_error(error: Exception) -> bool:
+    """Identify Hugging Face's exhausted-credit response without hiding errors."""
+    response = getattr(error, "response", None)
+    return getattr(response, "status_code", None) == 402 or (
+        "402" in str(error) and "credit" in str(error).lower()
+    )
+
+
+def render_chat_error(error: Exception) -> None:
+    if is_huggingface_credit_error(error):
+        st.error(
+            "Hugging Face has no inference credits available for this account. "
+            "Add credits or configure another chat provider/model in Streamlit secrets."
+        )
+        st.markdown(
+            "The PDF is indexed successfully; only answer generation is blocked. "
+            "Your question was not lost."
+        )
+        return
+
+    st.error(
+        "The answer could not be generated. "
+        "Check the Hugging Face token and configured chat model."
+    )
+    st.exception(error)
+
+
 # Sidebar
 with st.sidebar:
-    st.markdown("## 📚 RAGstack")
-    st.caption("Private, focused conversations with your documents.")
+    st.markdown("## ◈ RAGstack")
     st.markdown("---")
-    st.subheader("1. Add a document")
+    st.subheader("Document")
 
     uploaded_file = st.file_uploader(
         "Choose a PDF",
@@ -203,6 +236,7 @@ with st.sidebar:
                 st.session_state.vectorstore = vectorstore
                 st.session_state.rag_chain = rag_chain
                 st.session_state.messages = []
+                st.session_state.document_name = uploaded_file.name
                 status.update(
                     label="Document ready — ask your first question!",
                     state="complete",
@@ -219,7 +253,7 @@ with st.sidebar:
                 os.unlink(pdf_path)
 
     st.markdown("---")
-    st.subheader("2. Session controls")
+    st.subheader("Session")
 
     if st.button("🧹 New chat / reset", use_container_width=True):
         if os.path.exists(SESSION_DB_PATH):
@@ -228,25 +262,31 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
-    st.markdown("---")
-    st.caption("🔐 API key is read from Streamlit secrets")
-    st.caption("🧠 Embeddings run locally")
-    st.caption("🗂️ Isolated vector store per session")
-
-
-# Chat UI
-st.markdown(
+if not st.session_state.rag_chain:
+    st.markdown(
     """
-    <div class="hero">
-        <h1>Ask your document anything.</h1>
-        <p>Upload a PDF, ground every answer in its content, and keep your
-        research moving.</p>
+    <div class="intro">
+        <h1>Chat with your PDF.</h1>
+        <p>Upload a document in the sidebar to begin.</p>
+    </div>
+    <div class="empty-state">
+        <p>PDF · Private session · Local search</p>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-if st.session_state.rag_chain:
+else:
+    st.markdown(
+        f"""
+        <div class="intro">
+            <h1>Ask about your PDF.</h1>
+            <p>{getattr(st.session_state, "document_name", None) or "Your document"} is ready for questions.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.caption("Your document is indexed and ready.")
 
     for msg in st.session_state.messages:
@@ -277,25 +317,10 @@ if st.session_state.rag_chain:
                     full_answer += delta
                     message_placeholder.markdown(full_answer)
             except Exception as exc:
-                st.error(
-                    "The answer could not be generated. "
-                    "Please verify that your Hugging Face token can use the chat model."
-                )
-                st.exception(exc)
-                full_answer = "I couldn't generate an answer for that question."
+                render_chat_error(exc)
+                full_answer = ""
 
-        st.session_state.messages.append(
-            {"role": "assistant", "content": full_answer}
-        )
-
-else:
-    st.markdown(
-        """
-        <div class="empty-state">
-            <h2>👈 Start with a PDF</h2>
-            <p>Use the sidebar to upload and process a document. Your local
-            embeddings will be created once and reused for this session.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        if full_answer:
+            st.session_state.messages.append(
+                {"role": "assistant", "content": full_answer}
+            )
