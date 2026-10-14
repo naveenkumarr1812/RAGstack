@@ -100,10 +100,11 @@ RAGstack is designed with privacy in mind:
 ### Session Management
 Each user session gets a unique UUID-based identifier, creating isolated vector stores:
 ```
-chroma_sessions/
+<system-temporary-directory>/ragstack_chroma_sessions/
   └── <session-uuid>/
       └── [vector database files]
 ```
+Using the system temporary directory keeps Chroma writable on platforms where the deployed source tree is read-only.
 
 ### Document Processing Pipeline
 1. PDF loaded via PyPDFLoader

@@ -70,7 +70,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-BASE_DB_PATH = "chroma_sessions"
+BASE_DB_PATH = os.path.join(tempfile.gettempdir(), "ragstack_chroma_sessions")
 os.makedirs(BASE_DB_PATH, exist_ok=True)
 
 
