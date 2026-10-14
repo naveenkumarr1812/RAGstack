@@ -50,7 +50,7 @@ streamlit run streamlit.py
   ```toml
   GROQ_API_KEY = "your-groq-api-key"
   ```
-- Optionally set `GROQ_CHAT_MODEL` to select a different model; by default the app uses `llama-3.3-70b-versatile`
+- Chat uses `openai/gpt-oss-120b` through Groq. Groq recommends this model as a replacement for the deprecated `llama-3.3-70b-versatile`.
 - The key is used only for chat generation; PDF embeddings run locally
 
 ### Step 2: Upload a PDF
@@ -77,7 +77,7 @@ RAGstack uses a modern RAG architecture with the following components:
 - **Chunking**: Recursive text splitting with 500-character chunks and 100-character overlap
 
 ### Language Model
-- **Model**: Llama 3.3 70B via Groq
+- **Model**: OpenAI GPT-OSS 120B via Groq
 - **Temperature**: 0.2 for focused, deterministic responses
 - **Max Tokens**: 512 per response
 
@@ -116,9 +116,9 @@ chroma_sessions/
 ## 🎨 Customization
 
 ### Change the LLM
-Set a different model in Streamlit secrets:
+Change the model in `get_rag_chain` if you need another active Groq model:
 ```python
-GROQ_CHAT_MODEL = "your-preferred-model"
+model="your-preferred-model"
 ```
 
 ### Adjust Chunk Size
@@ -150,7 +150,7 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 5})  # Default is 8
 
 ### "Groq API Error"
 - Check that `GROQ_API_KEY` is valid and configured in Streamlit secrets
-- Check the configured model name in `GROQ_CHAT_MODEL`
+- Ensure the deployment is using the current code and active Groq model ID
 - For usage or rate limits, review your Groq account's current limits and retry later
 
 ### "Out of Memory"

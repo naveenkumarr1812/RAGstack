@@ -146,7 +146,7 @@ def get_rag_chain(vectorstore):
     )
 
     llm = ChatGroq(
-        model=st.secrets.get("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile"),
+        model="openai/gpt-oss-120b",
         max_tokens=512,
         temperature=0.2,
         api_key=groq_api_key,
@@ -188,6 +188,13 @@ def render_chat_error(error: Exception) -> None:
         return
     if status_code == 402:
         st.error("Groq requires billing or available credits for this request.")
+        return
+    if status_code == 404 or "model_not_found" in str(error):
+        st.error(
+            "The configured Groq model is unavailable to this account. "
+            "The app now uses `openai/gpt-oss-120b`; verify that the deployment "
+            "has the latest code and does not override the model."
+        )
         return
 
     st.error(
